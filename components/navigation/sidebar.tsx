@@ -4,6 +4,7 @@ import { Dialog, Transition } from "@headlessui/react";
 import {
   Activity,
   AlertTriangle,
+  Building2,
   FileStack,
   Layers,
   Settings,
@@ -26,6 +27,12 @@ const items = [
     label: "Documents",
     icon: FileStack,
     description: "All purchase orders, invoices, and agreements."
+  },
+  {
+    href: "/clients",
+    label: "Clients",
+    icon: Building2,
+    description: "Clients, vendors, and invoice hierarchy."
   },
   {
     href: "/exceptions",

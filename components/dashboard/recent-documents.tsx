@@ -262,23 +262,28 @@ export function RecentDocuments() {
               </div>
             )}
 
-            {doc.extracted_data.key_terms && doc.extracted_data.key_terms.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-3">
-                {doc.extracted_data.key_terms.slice(0, 3).map((term, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded-full"
-                  >
-                    {term}
-                  </span>
-                ))}
-                {doc.extracted_data.key_terms.length > 3 && (
-                  <span className="px-2 py-1 bg-slate-700 text-slate-400 text-xs rounded-full">
-                    +{doc.extracted_data.key_terms.length - 3}
-                  </span>
-                )}
-              </div>
-            )}
+            {doc.extracted_data.key_terms && doc.extracted_data.key_terms.length > 0 && (() => {
+              const terms = Array.isArray(doc.extracted_data.key_terms)
+                ? doc.extracted_data.key_terms
+                : String(doc.extracted_data.key_terms).split(',').map((t: string) => t.trim()).filter(Boolean);
+              return terms.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {terms.slice(0, 3).map((term: string, index: number) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded-full"
+                    >
+                      {term}
+                    </span>
+                  ))}
+                  {terms.length > 3 && (
+                    <span className="px-2 py-1 bg-slate-700 text-slate-400 text-xs rounded-full">
+                      +{terms.length - 3}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="flex items-center justify-between">
               <div className="text-xs text-slate-500">

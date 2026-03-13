@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth/use-auth";
 const links = [
   { href: "/", label: "Dashboard" },
   { href: "/documents", label: "Documents" },
+  { href: "/clients", label: "Clients" },
   { href: "/exceptions", label: "Exceptions" },
   { href: "/alerts", label: "Alerts" },
   { href: "/settings", label: "Settings" }

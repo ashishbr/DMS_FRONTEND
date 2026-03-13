@@ -265,23 +265,28 @@ export function ProcessedDocumentsViewer() {
               </div>
             )}
 
-            {doc.extracted_data.key_terms && doc.extracted_data.key_terms.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {doc.extracted_data.key_terms.slice(0, 6).map((term, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-slate-800 text-slate-300 text-xs rounded-full hover:bg-slate-700 transition-colors"
-                  >
-                    {term}
-                  </span>
-                ))}
-                {doc.extracted_data.key_terms.length > 6 && (
-                  <span className="px-3 py-1 bg-slate-800 text-slate-400 text-xs rounded-full">
-                    +{doc.extracted_data.key_terms.length - 6} more
-                  </span>
-                )}
-              </div>
-            )}
+            {doc.extracted_data.key_terms && doc.extracted_data.key_terms.length > 0 && (() => {
+              const terms = Array.isArray(doc.extracted_data.key_terms)
+                ? doc.extracted_data.key_terms
+                : String(doc.extracted_data.key_terms).split(',').map((t: string) => t.trim()).filter(Boolean);
+              return terms.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {terms.slice(0, 6).map((term: string, index: number) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-slate-800 text-slate-300 text-xs rounded-full hover:bg-slate-700 transition-colors"
+                    >
+                      {term}
+                    </span>
+                  ))}
+                  {terms.length > 6 && (
+                    <span className="px-3 py-1 bg-slate-800 text-slate-400 text-xs rounded-full">
+                      +{terms.length - 6} more
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>

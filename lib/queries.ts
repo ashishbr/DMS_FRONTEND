@@ -7,6 +7,7 @@ import {
   fetchExceptions,
   fetchMsaBuckets
 } from "@/lib/api";
+import type { ClientsOverviewResponse } from "@/lib/types/financial";
 
 export function useDashboardQuery() {
   return useQuery({
@@ -66,5 +67,14 @@ export function useMsaBucketsQuery() {
     queryKey: ["msa-buckets"],
     queryFn: fetchMsaBuckets,
     staleTime: 1000 * 60
+  });
+}
+
+export function useClientsOverview() {
+  return useQuery<ClientsOverviewResponse>({
+    queryKey: ["clients-overview"],
+    queryFn: () => fetch("/api/financial/clients-overview").then((r) => r.json()),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 }
