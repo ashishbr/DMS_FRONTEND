@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ClientWithVendors } from "@/lib/types/financial";
 import { VendorRow } from "./vendor-row";
+import { ClientGeneratedPOs } from "./ClientGeneratedPOs";
 
 function fmt(amount: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
@@ -188,6 +189,9 @@ export function ClientCard({ client }: { client: ClientWithVendors }) {
               </div>
             </div>
           )}
+
+          {/* Generated Vendor POs */}
+          <ClientGeneratedPOs clientName={client.client_name} />
         </div>
       )}
     </div>

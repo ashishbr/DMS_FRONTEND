@@ -73,7 +73,11 @@ export function useMsaBucketsQuery() {
 export function useClientsOverview() {
   return useQuery<ClientsOverviewResponse>({
     queryKey: ["clients-overview"],
-    queryFn: () => fetch("/api/financial/clients-overview").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/financial/clients-overview");
+      if (!r.ok) throw new Error(`Backend API returned ${r.status}`);
+      return r.json();
+    },
     staleTime: 30_000,
     refetchInterval: 30_000,
   });

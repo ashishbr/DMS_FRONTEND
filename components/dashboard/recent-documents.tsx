@@ -200,7 +200,7 @@ export function RecentDocuments() {
                 </div>
                 <div>
                   <h4 className="font-medium text-white text-sm">
-                    {doc.extracted_data.title.replace('--- Page 1 ---', '').trim() || 'Document'}
+                    {(doc.extracted_data.title ?? '').replace('--- Page 1 ---', '').trim() || 'Document'}
                   </h4>
                   <p className="text-xs text-slate-400">{doc.document_type}</p>
                 </div>

@@ -55,7 +55,7 @@ export function ClientsOverview() {
             </div>
           )}
 
-          {!isLoading && !isError && data && data.clients.length === 0 && (
+          {!isLoading && !isError && data && (data.clients ?? []).length === 0 && (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-900/40 py-16 text-center">
               <Building2 className="mb-4 h-10 w-10 text-slate-600" />
               <p className="text-sm font-medium text-slate-300">No clients yet.</p>
@@ -65,9 +65,9 @@ export function ClientsOverview() {
             </div>
           )}
 
-          {!isLoading && !isError && data && data.clients.length > 0 && (
+          {!isLoading && !isError && data && (data.clients ?? []).length > 0 && (
             <div className="space-y-3">
-              {data.clients.map((client) => (
+              {(data.clients ?? []).map((client) => (
                 <ClientCard key={client.client_name} client={client} />
               ))}
             </div>
