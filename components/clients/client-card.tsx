@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ChevronDown, Pencil, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ClientWithVendors } from "@/lib/types/financial";
+import type { ClientWithVendors, LinkedDocumentSummary } from "@/lib/types/financial";
+import { FileText } from "lucide-react";
 import { VendorRow } from "./vendor-row";
 import { ClientGeneratedPOs } from "./ClientGeneratedPOs";
+import { isUnknownClient, renameClient } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 function fmt(amount: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
@@ -54,17 +57,96 @@ function ClientInvoiceStatusBadge({ status }: { status: string }) {
 
 export function ClientCard({ client }: { client: ClientWithVendors }) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [nameInput, setNameInput] = useState(client.client_name);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+
+  const unknown = isUnknownClient(client.client_name);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const handleRename = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!nameInput.trim() || nameInput.trim() === client.client_name) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await renameClient(client.client_name, nameInput.trim());
+      await queryClient.invalidateQueries({ queryKey: ["clients-overview"] });
+      await queryClient.invalidateQueries({ queryKey: ["documents"] });
+      setEditing(false);
+    } catch {
+      alert("Failed to rename client. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNameInput(client.client_name);
+    setEditing(false);
+  };
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900">
       {/* Card header */}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => !editing && setOpen((v) => !v)}
         className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-lg font-semibold text-white truncate">{client.client_name}</span>
+          {editing ? (
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <input
+                ref={inputRef}
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename(e as unknown as React.MouseEvent);
+                  if (e.key === "Escape") handleCancel(e as unknown as React.MouseEvent);
+                }}
+                disabled={saving}
+                className="rounded-lg border border-brand-400 bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white focus:outline-none disabled:opacity-60 w-48"
+              />
+              <button
+                onClick={handleRename}
+                disabled={saving}
+                className="rounded-lg bg-emerald-500/20 border border-emerald-500/40 p-1.5 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-60"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={saving}
+                className="rounded-lg bg-slate-700/50 border border-slate-600 p-1.5 text-slate-400 hover:bg-slate-700 disabled:opacity-60"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={cn("text-lg font-semibold truncate", unknown ? "text-amber-300" : "text-white")}>
+                {client.client_name}
+              </span>
+              {unknown && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+                  className="shrink-0 rounded-md p-1 text-amber-400 hover:bg-amber-500/10"
+                  title="Rename client"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
           {client.client_pos.length > 0 && (
             <span className="shrink-0 rounded-full bg-slate-800 border border-slate-700 px-2 py-0.5 text-xs text-slate-300">
               {client.client_pos.length} PO{client.client_pos.length !== 1 ? "s" : ""}
@@ -181,6 +263,52 @@ export function ClientCard({ client }: { client: ClientWithVendors }) {
                           {inv.invoice_date
                             ? new Date(inv.invoice_date).toLocaleDateString()
                             : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* All Linked Documents */}
+          {client.linked_documents?.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Linked Documents ({client.linked_documents.length})
+              </p>
+              <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-800/30">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700/60">
+                      <th className="px-4 py-2.5 text-left font-medium text-slate-500">Title</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-slate-500">Category</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-slate-500">Reference</th>
+                      <th className="px-4 py-2.5 text-right font-medium text-slate-500">Amount</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-slate-500">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/40">
+                    {client.linked_documents.map((doc: LinkedDocumentSummary) => (
+                      <tr key={doc.id}>
+                        <td className="px-4 py-2.5 text-slate-200 max-w-[180px] truncate">
+                          <div className="flex items-center gap-1.5">
+                            <FileText className="h-3 w-3 text-slate-500 shrink-0" />
+                            <span className="truncate">{doc.title || "Untitled"}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-400">{doc.category}</td>
+                        <td className="px-4 py-2.5 font-mono text-slate-400">
+                          {doc.po_number || doc.invoice_number || doc.msa_number || "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-slate-200">
+                          {fmt(doc.amount, doc.currency)}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="inline-flex items-center rounded-full border border-slate-600 bg-slate-700/50 px-2 py-0.5 text-xs text-slate-300">
+                            {doc.status}
+                          </span>
                         </td>
                       </tr>
                     ))}

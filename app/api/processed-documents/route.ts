@@ -20,7 +20,7 @@ export async function GET() {
         "Content-Type": "application/json",
       },
       cache: "no-store",
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(90000),
     });
 
     if (!response.ok) {

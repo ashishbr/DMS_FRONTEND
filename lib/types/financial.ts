@@ -72,6 +72,19 @@ export interface VendorWithInvoices {
   invoices: VendorInvoiceRecord[];
 }
 
+export interface LinkedDocumentSummary {
+  id: string;
+  title: string;
+  category: string;
+  amount: number;
+  currency: string;
+  status: string;
+  po_number: string | null;
+  invoice_number: string | null;
+  msa_number: string | null;
+  created_at: string | null;
+}
+
 export interface ClientWithVendors {
   client_name: string;
   total_po_value: number;
@@ -79,6 +92,7 @@ export interface ClientWithVendors {
   client_pos: ClientPORecord[];
   client_invoices: ClientInvoiceRecord[];
   vendors: VendorWithInvoices[];
+  linked_documents: LinkedDocumentSummary[];
 }
 
 export interface ClientsOverviewResponse {

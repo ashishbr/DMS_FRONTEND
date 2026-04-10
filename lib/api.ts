@@ -92,6 +92,98 @@ export function fetchMsaBuckets() {
   return apiFetch<MsaBucketResponse>("/api/documents/msa-buckets");
 }
 
+const UNKNOWN_CLIENT_NAMES = new Set([
+  "unknown",
+  "unknown client",
+  "unknown vendor",
+  "n/a",
+  "",
+]);
+
+export function isUnknownClient(name: string) {
+  return UNKNOWN_CLIENT_NAMES.has(name.trim().toLowerCase());
+}
+
+export async function renameClient(oldName: string, newName: string) {
+  const res = await fetch(
+    `/api/financial/clients/${encodeURIComponent(oldName)}/rename`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_name: newName }),
+    }
+  );
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to rename client");
+  }
+  return res.json() as Promise<{ updated: number; old_name: string; new_name: string }>;
+}
+
+/** Manually assign a document to a client (records in audit log + cascades). */
+export function linkDocumentToClient(
+  documentId: string,
+  clientName: string,
+  linkedBy?: string
+) {
+  return apiFetch<ApiDocument>(`/api/documents/${documentId}/link`, {
+    method: "POST",
+    body: JSON.stringify({ client_name: clientName, linked_by: linkedBy ?? null }),
+  });
+}
+
+/** Remove the client assignment for a document (records unlink in audit log). */
+export function unlinkDocument(documentId: string) {
+  return apiFetch<ApiDocument>(`/api/documents/${documentId}/link`, {
+    method: "DELETE",
+  });
+}
+
+/** Update only the category of a document. */
+export function updateDocumentCategory(documentId: string, category: string) {
+  return apiFetch<ApiDocument>(`/api/documents/${documentId}/category`, {
+    method: "PATCH",
+    body: JSON.stringify({ category }),
+  });
+}
+
+export interface DocumentLinkRecord {
+  id: string;
+  document_id: string;
+  client_name: string;
+  linked_at: string;
+  unlinked_at: string | null;
+  is_active: boolean;
+  linked_by: string | null;
+}
+
+/** Fetch full link/unlink audit history for a document. */
+export function fetchLinkHistory(documentId: string) {
+  return apiFetch<DocumentLinkRecord[]>(`/api/documents/${documentId}/link-history`);
+}
+
+export interface DocumentFieldsUpdate {
+  title?: string;
+  client?: string;
+  vendor?: string;
+  amount?: number;
+  currency?: string;
+  po_number?: string;
+  invoice_number?: string;
+  msa_number?: string;
+  due_date?: string | null;
+  status?: string;
+}
+
+/** Correct extracted fields post-processing. Cascades to the financial record
+ *  (ClientPO / VendorPO / ClientInvoice / VendorInvoice) and re-runs relink. */
+export function updateDocumentFields(documentId: string, fields: DocumentFieldsUpdate) {
+  return apiFetch<ApiDocument>(`/api/documents/${documentId}/fields`, {
+    method: "PATCH",
+    body: JSON.stringify(fields),
+  });
+}
+
 export function sendChatMessage(
   message: string,
   context?: Array<{ role: "user" | "assistant"; content: string }>
