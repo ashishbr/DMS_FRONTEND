@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchAlerts,
+  fetchClientNames,
   fetchDashboardInsights,
   fetchDocumentById,
   fetchDocuments,
@@ -67,6 +68,14 @@ export function useMsaBucketsQuery() {
     queryKey: ["msa-buckets"],
     queryFn: fetchMsaBuckets,
     staleTime: 1000 * 60
+  });
+}
+
+export function useClientNamesQuery() {
+  return useQuery<string[]>({
+    queryKey: ["client-names"],
+    queryFn: fetchClientNames,
+    staleTime: 30_000,
   });
 }
 

@@ -422,6 +422,28 @@ export function DocumentClientMapper() {
     [clientsData]
   );
 
+  // Invoice numbers and PO numbers that are recorded in the financial tables
+  // under a known client — used as a fallback when doc.client is stale/blank.
+  const linkedInvoiceNumbers = useMemo(() => {
+    const s = new Set<string>();
+    for (const client of clientsData?.clients ?? []) {
+      for (const inv of client.client_invoices ?? []) {
+        if (inv.invoice_number) s.add(inv.invoice_number.trim().toLowerCase());
+      }
+    }
+    return s;
+  }, [clientsData]);
+
+  const linkedPoNumbers = useMemo(() => {
+    const s = new Set<string>();
+    for (const client of clientsData?.clients ?? []) {
+      for (const po of client.client_pos ?? []) {
+        if (po.po_number) s.add(po.po_number.trim().toLowerCase());
+      }
+    }
+    return s;
+  }, [clientsData]);
+
   // ── Filtered + split doc lists ─────────────────────────────────────────────
 
   const { unlinked, linked, categoryCounts } = useMemo(() => {
@@ -451,13 +473,25 @@ export function DocumentClientMapper() {
       if (categoryFilter !== "All" && doc.category !== categoryFilter) continue;
 
       const c = doc.client?.trim() ?? "";
-      const isSelfDefining = SELF_DEFINING_CATEGORIES.has(doc.category);
+
+      // Check if this document is registered in the financial tables under a
+      // known client — this catches cases where doc.client is stale or blank.
+      const invoiceLinked =
+        doc.category === "Client Invoice" &&
+        !!doc.invoice_number &&
+        linkedInvoiceNumbers.has(doc.invoice_number.trim().toLowerCase());
+      const poLinked =
+        doc.category === "Client PO" &&
+        !!doc.po_number &&
+        linkedPoNumbers.has(doc.po_number.trim().toLowerCase());
 
       if (explicitlyLinkedIds.has(doc.id)) {
         linked.push(doc);
       } else if (explicitlyUnlinkedIds.has(doc.id)) {
         unlinked.push(doc);
-      } else if (!isSelfDefining && c && knownClients.has(c.toLowerCase())) {
+      } else if (c && knownClients.has(c.toLowerCase())) {
+        linked.push(doc);
+      } else if (invoiceLinked || poLinked) {
         linked.push(doc);
       } else {
         unlinked.push(doc);
@@ -465,7 +499,7 @@ export function DocumentClientMapper() {
     }
 
     return { unlinked, linked, categoryCounts };
-  }, [documents, search, categoryFilter, clientNames, explicitlyLinkedIds, explicitlyUnlinkedIds]);
+  }, [documents, search, categoryFilter, clientNames, linkedInvoiceNumbers, linkedPoNumbers, explicitlyLinkedIds, explicitlyUnlinkedIds]);
 
   const mappedByClient = useMemo(() => {
     const map: Record<string, ApiDocument[]> = {};

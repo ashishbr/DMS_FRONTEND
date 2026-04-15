@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, FormEvent } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UploadWidget } from "@/components/documents/upload-widget";
-import { useDocumentsQuery } from "@/lib/queries";
+import { useDocumentsQuery, useClientNamesQuery } from "@/lib/queries";
+import { linkDocumentToClient, unlinkDocument, isUnknownClient } from "@/lib/api";
 
-import type { DocumentCategory } from "@/lib/data/sample-data";
+import type { DocumentRecord, DocumentCategory } from "@/lib/data/sample-data";
 
 const statusVariant: Record<string, "info" | "success" | "warning" | "danger"> = {
   Draft: "info",
@@ -18,10 +21,143 @@ const statusVariant: Record<string, "info" | "success" | "warning" | "danger"> =
   Flagged: "danger"
 };
 
+// ---------------------------------------------------------------------------
+// Link-to-client modal
+// ---------------------------------------------------------------------------
+function LinkClientModal({
+  doc,
+  clientNames,
+  onClose,
+}: {
+  doc: DocumentRecord;
+  clientNames: string[];
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState(
+    isUnknownClient(doc.client) ? "" : doc.client
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isCurrentlyLinked = !isUnknownClient(doc.client);
+  const listId = `client-names-${doc.id}`;
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const name = value.trim();
+    if (!name) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await linkDocumentToClient(doc.id, name);
+      await qc.invalidateQueries({ queryKey: ["documents"] });
+      await qc.invalidateQueries({ queryKey: ["clients-overview"] });
+      await qc.invalidateQueries({ queryKey: ["client-names"] });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to link document");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUnlink() {
+    setSaving(true);
+    setError(null);
+    try {
+      await unlinkDocument(doc.id);
+      await qc.invalidateQueries({ queryKey: ["documents"] });
+      await qc.invalidateQueries({ queryKey: ["clients-overview"] });
+      await qc.invalidateQueries({ queryKey: ["client-names"] });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to unlink document");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <h2 className="text-base font-semibold text-white">Assign to Client</h2>
+        <p className="mt-1 text-sm text-slate-400 truncate">
+          {doc.title}
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+              Client Name
+            </label>
+            {/* datalist gives free-text + autocomplete without a custom combobox */}
+            <input
+              ref={inputRef}
+              list={listId}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="Type or select a client…"
+              autoFocus
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+            <datalist id={listId}>
+              {clientNames.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
+            <p className="mt-1.5 text-xs text-slate-500">
+              Choose an existing client or type a new name to create one.
+            </p>
+          </div>
+
+          {error && (
+            <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+              {error}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between gap-2 pt-1">
+            {isCurrentlyLinked && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleUnlink}
+                disabled={saving}
+                className="text-xs text-rose-400 hover:text-rose-300"
+              >
+                Unlink
+              </Button>
+            )}
+            <div className={cn("flex gap-2", !isCurrentlyLinked && "ml-auto")}>
+              <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || !value.trim()}>
+                {saving ? "Saving…" : "Assign"}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Documents table
+// ---------------------------------------------------------------------------
 export function DocumentsTable() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<DocumentCategory | "all">("all");
+  const [linkingDoc, setLinkingDoc] = useState<DocumentRecord | null>(null);
+
   const { data, isLoading, isError, error } = useDocumentsQuery();
+  const { data: clientNames = [] } = useClientNamesQuery();
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
@@ -39,6 +175,14 @@ export function DocumentsTable() {
 
   return (
     <div className="space-y-6">
+      {linkingDoc && (
+        <LinkClientModal
+          doc={linkingDoc}
+          clientNames={clientNames}
+          onClose={() => setLinkingDoc(null)}
+        />
+      )}
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">Document Inventory</h1>
@@ -85,11 +229,12 @@ export function DocumentsTable() {
               <th className="px-4 py-3 text-left">ID</th>
               <th className="px-4 py-3 text-left">Title</th>
               <th className="px-4 py-3 text-left">Category</th>
-              <th className="px-4 py-3 text-left">Client/Vendor</th>
+              <th className="px-4 py-3 text-left">Client / Vendor</th>
               <th className="px-4 py-3 text-right">Amount</th>
               <th className="px-4 py-3 text-left">Status</th>
               <th className="px-4 py-3 text-left">Confidence</th>
               <th className="px-4 py-3 text-left">Linked</th>
+              <th className="px-4 py-3 text-left">Client</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/70 text-slate-200">
@@ -154,6 +299,20 @@ export function DocumentsTable() {
                   ) : (
                     <span className="text-xs text-slate-500">Unlinked</span>
                   )}
+                </td>
+                <td className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setLinkingDoc(doc)}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-xs font-medium transition",
+                      isUnknownClient(doc.client)
+                        ? "border border-slate-700 text-slate-400 hover:border-brand-500 hover:text-brand-300"
+                        : "border border-brand-500/40 bg-brand-500/10 text-brand-300 hover:bg-brand-500/20"
+                    )}
+                  >
+                    {isUnknownClient(doc.client) ? "+ Add Client" : doc.client}
+                  </button>
                 </td>
               </tr>
             ))}

@@ -184,6 +184,11 @@ export function updateDocumentFields(documentId: string, fields: DocumentFieldsU
   });
 }
 
+/** Returns a sorted list of all known client names (from ClientPO + active links). */
+export function fetchClientNames(): Promise<string[]> {
+  return apiFetch<string[]>("/api/financial/clients");
+}
+
 export function sendChatMessage(
   message: string,
   context?: Array<{ role: "user" | "assistant"; content: string }>
