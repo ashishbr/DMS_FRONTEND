@@ -539,6 +539,7 @@ export function DocumentClientMapper() {
     const map: Record<string, ApiDocument[]> = {};
     for (const name of clientNames) map[name] = [];
     for (const doc of documents) {
+      if (explicitlyUnlinkedIds.has(doc.id)) continue;
       const c = doc.client?.trim();
       if (c && clientNames.includes(c)) {
         map[c] = map[c] ?? [];
@@ -546,7 +547,7 @@ export function DocumentClientMapper() {
       }
     }
     return map;
-  }, [documents, clientNames]);
+  }, [documents, clientNames, explicitlyUnlinkedIds]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
