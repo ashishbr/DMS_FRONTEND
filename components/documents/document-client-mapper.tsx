@@ -444,6 +444,32 @@ export function DocumentClientMapper() {
     return s;
   }, [clientsData]);
 
+  // Vendor PO numbers that are linked to a client (via vendor_pos under each client's vendors)
+  const linkedVendorPoNumbers = useMemo(() => {
+    const s = new Set<string>();
+    for (const client of clientsData?.clients ?? []) {
+      for (const vendor of client.vendors ?? []) {
+        for (const vpo of vendor.vendor_pos ?? []) {
+          if (vpo.vendor_po_number) s.add(vpo.vendor_po_number.trim().toLowerCase());
+        }
+      }
+    }
+    return s;
+  }, [clientsData]);
+
+  // Vendor invoice numbers that are linked to a client (via invoices under each vendor)
+  const linkedVendorInvoiceNumbers = useMemo(() => {
+    const s = new Set<string>();
+    for (const client of clientsData?.clients ?? []) {
+      for (const vendor of client.vendors ?? []) {
+        for (const inv of vendor.invoices ?? []) {
+          if (inv.invoice_number) s.add(inv.invoice_number.trim().toLowerCase());
+        }
+      }
+    }
+    return s;
+  }, [clientsData]);
+
   // ── Filtered + split doc lists ─────────────────────────────────────────────
 
   const { unlinked, linked, categoryCounts } = useMemo(() => {
@@ -484,6 +510,14 @@ export function DocumentClientMapper() {
         doc.category === "Client PO" &&
         !!doc.po_number &&
         linkedPoNumbers.has(doc.po_number.trim().toLowerCase());
+      const vendorPoLinked =
+        doc.category === "Vendor PO" &&
+        !!doc.po_number &&
+        linkedVendorPoNumbers.has(doc.po_number.trim().toLowerCase());
+      const vendorInvoiceLinked =
+        doc.category === "Vendor Invoice" &&
+        !!doc.invoice_number &&
+        linkedVendorInvoiceNumbers.has(doc.invoice_number.trim().toLowerCase());
 
       if (explicitlyLinkedIds.has(doc.id)) {
         linked.push(doc);
@@ -491,7 +525,7 @@ export function DocumentClientMapper() {
         unlinked.push(doc);
       } else if (c && knownClients.has(c.toLowerCase())) {
         linked.push(doc);
-      } else if (invoiceLinked || poLinked) {
+      } else if (invoiceLinked || poLinked || vendorPoLinked || vendorInvoiceLinked) {
         linked.push(doc);
       } else {
         unlinked.push(doc);
@@ -499,7 +533,7 @@ export function DocumentClientMapper() {
     }
 
     return { unlinked, linked, categoryCounts };
-  }, [documents, search, categoryFilter, clientNames, linkedInvoiceNumbers, linkedPoNumbers, explicitlyLinkedIds, explicitlyUnlinkedIds]);
+  }, [documents, search, categoryFilter, clientNames, linkedInvoiceNumbers, linkedPoNumbers, linkedVendorPoNumbers, linkedVendorInvoiceNumbers, explicitlyLinkedIds, explicitlyUnlinkedIds]);
 
   const mappedByClient = useMemo(() => {
     const map: Record<string, ApiDocument[]> = {};

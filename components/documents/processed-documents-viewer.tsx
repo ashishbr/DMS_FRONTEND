@@ -82,6 +82,8 @@ export function ProcessedDocumentsViewer() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [fullText, setFullText] = useState<string | null>(null);
   const [fullTextLoading, setFullTextLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ inserted: number; skipped: number; errors: string[] } | null>(null);
 
   const sanitizeTitle = (value?: string) => value?.replace('--- Page 1 ---', '').trim();
   const getDisplayTitle = (doc: ProcessedDocument) => {
@@ -97,6 +99,22 @@ export function ProcessedDocumentsViewer() {
   useEffect(() => {
     fetchProcessedDocuments();
   }, []);
+
+  const syncCacheToDB = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/uploads/sync-cache-to-db", { method: "POST" });
+      const data = await res.json();
+      setSyncResult(data);
+      // Refresh the list so newly inserted documents appear
+      await fetchProcessedDocuments();
+    } catch {
+      setSyncResult({ inserted: 0, skipped: 0, errors: ["Request failed"] });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const fetchProcessedDocuments = async () => {
     try {
@@ -313,8 +331,16 @@ export function ProcessedDocumentsViewer() {
           <h1 className="text-2xl font-semibold text-white">Document Inventory</h1>
           <p className="text-sm text-slate-400 mt-1">Central repository of processed documents with OCR content</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span className="text-sm text-slate-400">{documents.length} documents</span>
+          <button
+            onClick={syncCacheToDB}
+            disabled={syncing}
+            title="Insert any cached documents that are missing from the database"
+            className="px-3 py-1.5 bg-brand-500/20 text-brand-300 text-sm rounded-lg hover:bg-brand-500/30 transition-colors disabled:opacity-50"
+          >
+            {syncing ? "Syncing…" : "Sync to DB"}
+          </button>
           <button
             onClick={fetchProcessedDocuments}
             className="px-3 py-1.5 bg-slate-800 text-slate-300 text-sm rounded-lg hover:bg-slate-700 transition-colors"
@@ -323,6 +349,21 @@ export function ProcessedDocumentsViewer() {
           </button>
         </div>
       </div>
+
+      {syncResult && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${
+          syncResult.errors.length > 0
+            ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
+            : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+        }`}>
+          {syncResult.inserted > 0
+            ? `✓ Inserted ${syncResult.inserted} missing document(s) into the database.`
+            : "All cached documents are already in the database."}
+          {syncResult.errors.length > 0 && (
+            <span className="ml-2 text-amber-300">{syncResult.errors.length} error(s) — check server logs.</span>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-4">
         {documents.map((doc) => (
