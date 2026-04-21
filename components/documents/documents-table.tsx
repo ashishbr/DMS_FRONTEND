@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UploadWidget } from "@/components/documents/upload-widget";
 import { useDocumentsQuery, useClientNamesQuery } from "@/lib/queries";
-import { linkDocumentToClient, unlinkDocument, isUnknownClient } from "@/lib/api";
+import { linkDocumentToClient, unlinkDocument, isUnknownClient, createClient } from "@/lib/api";
 
 import type { DocumentRecord, DocumentCategory } from "@/lib/data/sample-data";
 
@@ -149,12 +149,85 @@ function LinkClientModal({
 }
 
 // ---------------------------------------------------------------------------
+// Add-client modal
+// ---------------------------------------------------------------------------
+function AddClientModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await createClient(trimmed);
+      await qc.invalidateQueries({ queryKey: ["client-names"] });
+      await qc.invalidateQueries({ queryKey: ["clients-overview"] });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create client");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <h2 className="text-base font-semibold text-white">Add New Client</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Creates a client entry visible in the Clients Overview.
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+              Client Name
+            </label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Acme Corp"
+              autoFocus
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+
+          {error && (
+            <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+              {error}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving || !name.trim()}>
+              {saving ? "Creating…" : "Create Client"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Documents table
 // ---------------------------------------------------------------------------
 export function DocumentsTable() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<DocumentCategory | "all">("all");
   const [linkingDoc, setLinkingDoc] = useState<DocumentRecord | null>(null);
+  const [addingClient, setAddingClient] = useState(false);
 
   const { data, isLoading, isError, error } = useDocumentsQuery();
   const { data: clientNames = [] } = useClientNamesQuery();
@@ -182,6 +255,7 @@ export function DocumentsTable() {
           onClose={() => setLinkingDoc(null)}
         />
       )}
+      {addingClient && <AddClientModal onClose={() => setAddingClient(false)} />}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -207,6 +281,9 @@ export function DocumentsTable() {
             <option value="Vendor Invoice">Vendor Invoices</option>
             <option value="Service Agreement">Service Agreements</option>
           </Select>
+          <Button type="button" onClick={() => setAddingClient(true)}>
+            + Add Client
+          </Button>
         </div>
       </div>
 

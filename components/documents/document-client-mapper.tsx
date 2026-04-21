@@ -21,7 +21,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useClientsOverview } from "@/lib/queries";
 import {
   linkDocumentToClient, unlinkDocument, updateDocumentCategory,
-  renameClient, isUnknownClient,
+  renameClient, isUnknownClient, createClient,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth/use-auth";
 import type { ApiDocument } from "@/lib/api";
@@ -406,6 +406,9 @@ export function DocumentClientMapper() {
   const [overId, setOverId] = useState<string | null>(null);
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null);
+  const [addingClient, setAddingClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [savingClient, setSavingClient] = useState(false);
 
   // Explicit user actions this session override auto-classification
   const [explicitlyLinkedIds, setExplicitlyLinkedIds] = useState<Set<string>>(new Set());
@@ -572,6 +575,25 @@ export function DocumentClientMapper() {
     await queryClient.invalidateQueries({ queryKey: ["msa-buckets"] });
   }
 
+  async function handleAddClient(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newClientName.trim();
+    if (!name) return;
+    setSavingClient(true);
+    try {
+      await createClient(name);
+      await queryClient.invalidateQueries({ queryKey: ["clients-overview"] });
+      await queryClient.invalidateQueries({ queryKey: ["client-names"] });
+      setNewClientName("");
+      setAddingClient(false);
+      showToast(`Client "${name}" created`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to create client", true);
+    } finally {
+      setSavingClient(false);
+    }
+  }
+
   // ── Drag ──────────────────────────────────────────────────────────────────
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -615,15 +637,68 @@ export function DocumentClientMapper() {
 
   return (
     <section className="space-y-4">
+      {/* Add Client Modal */}
+      {addingClient && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) { setAddingClient(false); setNewClientName(""); } }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+            <h2 className="text-base font-semibold text-white">Add New Client</h2>
+            <p className="mt-1 text-sm text-slate-400">Creates a client visible in the Clients Overview.</p>
+            <form onSubmit={handleAddClient} className="mt-5 space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Client Name
+                </label>
+                <input
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder="e.g. Acme Corp"
+                  autoFocus
+                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setAddingClient(false); setNewClientName(""); }}
+                  disabled={savingClient}
+                  className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingClient || !newClientName.trim()}
+                  className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50 transition"
+                >
+                  {savingClient ? "Creating…" : "Create Client"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div>
           <p className="text-xs uppercase text-slate-500">Manual mapping</p>
           <h2 className="text-2xl font-semibold text-white">Document → Client</h2>
         </div>
-        <p className="text-xs text-slate-500 max-w-sm text-right">
-          Drag an unlinked document onto a client to assign it. Use the category badge on each card to reclassify.
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-slate-500 max-w-sm text-right">
+            Drag an unlinked document onto a client to assign it. Use the category badge on each card to reclassify.
+          </p>
+          <button
+            type="button"
+            onClick={() => setAddingClient(true)}
+            className="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 transition"
+          >
+            + Add Client
+          </button>
+        </div>
       </div>
 
       {isLoading ? (

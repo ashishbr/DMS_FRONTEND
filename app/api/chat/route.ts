@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 interface ChatRequestBody {
   message: string;
   context?: Array<{ role: "user" | "assistant"; content: string }>;
+  session_id?: string;
 }
 
 const knowledgeBase = `EMB Global focuses on an AI-powered DMS that ingests purchase orders, invoices, and service agreements.
@@ -35,7 +36,8 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           query: userMessage,
-          context: body.context
+          context: body.context,
+          session_id: body.session_id
         }),
         cache: "no-store"
       });
@@ -45,9 +47,10 @@ export async function POST(request: Request) {
           answer?: string;
           reply?: string;
           message?: string;
+          session_id?: string;
         };
         return NextResponse.json(
-          { reply: payload.answer ?? payload.reply ?? payload.message ?? "The assistant couldn't craft a response." },
+          { reply: payload.answer ?? payload.reply ?? payload.message ?? "The assistant couldn't craft a response.", session_id: payload.session_id },
           { status: 200 }
         );
       }

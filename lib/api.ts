@@ -189,12 +189,21 @@ export function fetchClientNames(): Promise<string[]> {
   return apiFetch<string[]>("/api/financial/clients");
 }
 
+/** Create a standalone client (no document required). */
+export function createClient(clientName: string): Promise<unknown> {
+  return apiFetch("/api/financial/clients", {
+    method: "POST",
+    body: JSON.stringify({ client_name: clientName }),
+  });
+}
+
 export function sendChatMessage(
   message: string,
-  context?: Array<{ role: "user" | "assistant"; content: string }>
+  context?: Array<{ role: "user" | "assistant"; content: string }>,
+  sessionId?: string
 ) {
-  return apiFetch<{ reply: string }>("/api/chat/", {
+  return apiFetch<{ reply: string; session_id?: string }>("/api/chat/", {
     method: "POST",
-    body: JSON.stringify({ message, context })
+    body: JSON.stringify({ message, context, session_id: sessionId })
   });
 }

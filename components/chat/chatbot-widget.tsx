@@ -31,6 +31,7 @@ export function ChatbotWidget() {
   }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -49,7 +50,8 @@ export function ChatbotWidget() {
     setError(null);
 
     try {
-      const { reply } = await sendChatMessage(userTurn.content, pendingConversation.map(({ role, content }) => ({ role, content })));
+      const { reply, session_id } = await sendChatMessage(userTurn.content, pendingConversation.map(({ role, content }) => ({ role, content })), sessionId);
+      if (session_id) setSessionId(session_id);
       const assistantTurn: ChatTurn = {
         id: crypto.randomUUID(),
         role: "assistant",
