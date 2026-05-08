@@ -103,7 +103,7 @@ export function ChatbotWidget() {
             </div>
 
             <div className="flex flex-col gap-3 px-4 py-4 text-sm text-slate-200">
-              <div className="h-64 overflow-y-auto space-y-3 pr-1">
+              <div className="h-96 overflow-y-auto space-y-3 pr-1">
                 {chatHistory.map((turn) => (
                   <div key={turn.id} className={turn.role === "assistant" ? "flex gap-3" : "flex gap-3 justify-end"}>
                     {turn.role === "assistant" && (
@@ -137,18 +137,6 @@ export function ChatbotWidget() {
 
               {error && <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{error}</p>}
 
-              <div className="flex flex-wrap gap-2">
-                {quickPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => handleQuickPrompt(prompt)}
-                    className="rounded-full border border-slate-800 bg-slate-900/60 px-3 py-1 text-xs text-slate-300 transition hover:border-brand-500/40 hover:text-brand-100"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="border-t border-slate-800 bg-slate-900/70 px-4 py-3">
