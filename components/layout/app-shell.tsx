@@ -2,7 +2,7 @@
 
 import { ChevronDown, LogOut, Menu, Search, Settings, User } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { DashboardSidebar } from "@/components/navigation/sidebar";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,8 @@ const links = [
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, setRole } = useAuth();
+  const { user, setRole, logout } = useAuth();
+  const router = useRouter();
 
   return (
     <div className="flex min-h-screen bg-slate-950">
@@ -95,7 +96,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <DropdownMenuItem onSelect={() => setRole("finance")}>Switch to Finance</DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => setRole("marketing")}>Switch to Marketing</DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => setRole("admin")}>Switch to Admin</DropdownMenuItem>
-                  <DropdownMenuItem className="text-rose-300">
+                  <DropdownMenuItem
+                    className="text-rose-300"
+                    onSelect={() => { logout(); router.replace("/login"); }}
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
                   </DropdownMenuItem>
